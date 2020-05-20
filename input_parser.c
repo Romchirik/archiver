@@ -94,9 +94,16 @@ Input_data *parseInput(int num_args, char **args) {
             return input_data;
         }
     }
-    input_data->destination = calloc(1, sizeof(struct File_info));
-    input_data->destination->filepath = args[2];
-    input_data->destination->file = fopen(args[2], "wb");
+    if(tmp_command == 1){
+        input_data->destination = calloc(1, sizeof(struct File_info));
+        input_data->destination->filepath = args[2];
+        input_data->destination->file = fopen(args[2], "wb");
+
+    } else {
+        input_data->destination = calloc(1, sizeof(struct File_info));
+        input_data->destination->filepath = args[2];
+        input_data->destination->file = fopen(args[2], "rb");
+    }
 
     input_data->num_inputs = num_args - 3;
 

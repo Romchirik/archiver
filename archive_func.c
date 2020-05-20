@@ -2,10 +2,8 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <unistd.h>
 
 #include "settings.h"
@@ -17,6 +15,8 @@ typedef unsigned char bitword;
 bitword *createBitset(int length) {
     return calloc(length, sizeof(unsigned char));
 }
+
+void bitsetSet(bitword *arr, unsigned int idx, int new_val);
 
 Byte_info *createFreqTable(unsigned int length) {
     uint8_t counter = 0;
@@ -64,11 +64,12 @@ short int fillFreqTable(Byte_info *freq_table, struct File_info **source, int nu
     return counter;
 }
 
-void codeFile(struct File_info *file_to_code, struct File_info *destination) {
-    unsigned char write_buffer[WRITE_BUFFER_LEN];
+void codeFile(struct File_info *file_to_code, struct File_info *destination, Byte_code **byte_codes) {
+    bitword *write_buffer = createBitset(WRITE_BUFFER_LEN);
+    unsigned char read_buffer[READING_BUFFER_LEN];
 
     unsigned char filename_len = strlen(file_to_code->filepath);
-    char reading_available = 1;
+
 
     struct stat filestat;
     int descriptor = open(file_to_code->filepath, O_RDONLY);
@@ -77,18 +78,44 @@ void codeFile(struct File_info *file_to_code, struct File_info *destination) {
 
     fwrite(&filename_len, sizeof(unsigned int), 1, destination->file);
     fwrite(&file_to_code->filepath, sizeof(char), filename_len, destination->file);
+    fflush(destination->file);
 
-    fclose(file_to_code->file);
-    while (reading_available) {
-        int i;
+    fseek(destination->file, sizeof(unsigned long long int), SEEK_CUR);
+    unsigned long long int total_bytes_length = 0;
+    unsigned int num_bits_in_buffer = 0;
+    for (unsigned long int i = 0; i < (filestat.st_size / READING_BUFFER_LEN) + 1; i++) {
+        unsigned int total_bytes_read = fread(read_buffer, sizeof(unsigned char), READING_BUFFER_LEN,
+                                              file_to_code->file);
+        for (int j = 0; j < total_bytes_read; j++) {
 
-        if (i != READING_BUFFER_LEN - 1) {
-            reading_available = 0;
-            fclose(file_to_code->file);
+            Byte_code *tmp_info = byte_codes[read_buffer[i]];
+            uint64_t mask = ((unsigned int) 1 << tmp_info->code_length) - 1;
+
+            for (int k = 0; k < tmp_info->code_length; k++) {
+
+                bitsetSet(write_buffer, num_bits_in_buffer, (int) (mask & tmp_info->code));
+                num_bits_in_buffer++;
+
+                if (num_bits_in_buffer == WRITE_BUFFER_LEN) {
+                    fwrite(write_buffer, sizeof(bitword), WRITE_BUFFER_LEN, destination->file);
+                    memset(write_buffer, 0, WRITE_BUFFER_LEN);
+                    num_bits_in_buffer = 0;
+                    total_bytes_length += WRITE_BUFFER_LEN;
+                }
+            }
         }
 
-
     }
+    if (num_bits_in_buffer != 0) {
+        total_bytes_length += (num_bits_in_buffer / BITSET_BLOCK_SIZE) + 1;
+        fwrite(write_buffer, sizeof(bitword), (num_bits_in_buffer / BITSET_BLOCK_SIZE) + 1, destination->file);
+    }
+    fseek(destination->file, -(total_bytes_length + sizeof(unsigned long long int)), SEEK_CUR);
+    fwrite(&total_bytes_length, sizeof(unsigned long long int), 1, destination->file);
+    fseek(destination->file, 0, SEEK_END);
+
+    fflush(file_to_code->file);
+    fclose(file_to_code->file);
 }
 
 Input_data *archive(Input_data *data) {
@@ -107,11 +134,10 @@ Input_data *archive(Input_data *data) {
     //saving Huffman tree
 
     int tree_template_len = getNumMoves(root, 0);
-    tree_template_len = tree_template_len / BITSET_BLOCK_SIZE;
+    tree_template_len = (tree_template_len / BITSET_BLOCK_SIZE) + 1;
     bitword *tree_template = calloc(tree_template_len, sizeof(bitword));
     unsigned char *alphabet = calloc(non_zero_bytes, sizeof(unsigned char));
 
-    tree_template_len = (tree_template_len / BITSET_BLOCK_SIZE) + 1;
 
     int tmp = 0;
     saveTreeBypass(root, 0, &tmp, tree_template, alphabet);
@@ -131,13 +157,12 @@ Input_data *archive(Input_data *data) {
 
     fwrite(&non_zero_bytes, sizeof(short int), 1, data->destination->file);
     fwrite(alphabet, sizeof(unsigned char), non_zero_bytes, data->destination->file);
+    fwrite(&data->num_inputs, sizeof(unsigned char), 1, data->destination->file);
     fflush(data->destination->file);
-//
-//    for (int i = 0; i < data->num_inputs; i++) {
-//        codeFile(data->source[i], data->destination);
-//    }
 
-
+    for (int i = 0; i < data->num_inputs; i++) {
+        codeFile(data->source[i], data->destination, byte_codes_table);
+    }
 
 
 }
