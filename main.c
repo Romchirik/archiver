@@ -1,21 +1,27 @@
 #include <stdio.h>
-#include "archive_func.h"
-#include "input_parser.h"
-#include "settings.h"
-#include <stdlib.h>
 
-int bitsetGet(bitword *arr, int idx);
-void bitsetSet(bitword *arr, int idx, int newval);
+#include "main_functions.h"
+#include "settings.h"
+
 
 int main(int num_args, char **args) {
 
     Input_data *input_data = parseInput(num_args, args);
-    if(input_data->errors){
+    if (input_data->errors) {
         errorsHandler(input_data);
     }
     switch (input_data->command) {
         case 1:
             archive(input_data);
+            break;
+        case 2:
+            unzip(input_data);
+            break;
+        case 3:
+            break;
+        case 4:
+            break;
+        case 5:
             break;
     }
 

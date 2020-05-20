@@ -9,12 +9,10 @@
 #include <unistd.h>
 
 #include "settings.h"
-#include "input_parser.h"
 #include "archive_func.h"
-#include "input_parser.h"
+#include "main_functions.h"
 
 typedef unsigned char bitword;
-
 
 bitword *createBitset(int length) {
     return calloc(length, sizeof(unsigned char));
@@ -81,10 +79,10 @@ void codeFile(struct File_info *file_to_code, struct File_info *destination) {
     fwrite(&file_to_code->filepath, sizeof(char), filename_len, destination->file);
 
     fclose(file_to_code->file);
-    while (reading_available){
+    while (reading_available) {
         int i;
 
-        if (i != READING_BUFFER_LEN - 1){
+        if (i != READING_BUFFER_LEN - 1) {
             reading_available = 0;
             fclose(file_to_code->file);
         }
@@ -108,7 +106,7 @@ Input_data *archive(Input_data *data) {
 
     //saving Huffman tree
 
-    unsigned char tree_template_len = getNumMoves(root, 0);
+    int tree_template_len = getNumMoves(root, 0);
     tree_template_len = tree_template_len / BITSET_BLOCK_SIZE;
     bitword *tree_template = calloc(tree_template_len, sizeof(bitword));
     unsigned char *alphabet = calloc(non_zero_bytes, sizeof(unsigned char));
@@ -128,18 +126,18 @@ Input_data *archive(Input_data *data) {
     }
 
     //write archive header
-    fwrite(&tree_template_len, sizeof(unsigned int), 1, data->destination->file);
+    fwrite(&tree_template_len, sizeof(int), 1, data->destination->file);
     fwrite(tree_template, sizeof(bitword), tree_template_len, data->destination->file);
 
     fwrite(&non_zero_bytes, sizeof(short int), 1, data->destination->file);
     fwrite(alphabet, sizeof(unsigned char), non_zero_bytes, data->destination->file);
     fflush(data->destination->file);
-    fclose(data->destination->file);
-    for (int i = 0; i < data->num_inputs; i++) {
-        codeFile(data->source[i], data->destination);
-    }
+//
+//    for (int i = 0; i < data->num_inputs; i++) {
+//        codeFile(data->source[i], data->destination);
+//    }
 
-    fclose(data->destination->file);
+
 
 
 }

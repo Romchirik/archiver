@@ -1,8 +1,9 @@
 #include <inttypes.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "settings.h"
-
 
 typedef unsigned char bitword;
 
@@ -30,9 +31,11 @@ int bitsetGet(bitword *arr, int idx) {
 
 void bitsetSet(bitword *arr, unsigned int idx, int newval) {
     if (newval) {
-        arr[idx / BITSET_BLOCK_SIZE] = arr[idx / BITSET_BLOCK_SIZE] | (1 << (BITSET_BLOCK_SIZE - 1 - idx % BITSET_BLOCK_SIZE));
+        arr[idx / BITSET_BLOCK_SIZE] =
+                arr[idx / BITSET_BLOCK_SIZE] | (1 << (BITSET_BLOCK_SIZE - 1 - idx % BITSET_BLOCK_SIZE));
     } else {
-        arr[idx / BITSET_BLOCK_SIZE] = arr[idx / BITSET_BLOCK_SIZE] & ~(1 << (BITSET_BLOCK_SIZE - 1 - idx % BITSET_BLOCK_SIZE));
+        arr[idx / BITSET_BLOCK_SIZE] =
+                arr[idx / BITSET_BLOCK_SIZE] & ~(1 << (BITSET_BLOCK_SIZE - 1 - idx % BITSET_BLOCK_SIZE));
     }
 }
 
@@ -83,7 +86,6 @@ void insertCellHeap(Heap *target, Huffman_node *data) {
     target->length++;
     heapifyUp(target, target->length - 1);
 }
-
 
 Huffman_node *getMinHeap(Heap *target) {
     Huffman_node *tmp = target->data_arr[0];
@@ -159,8 +161,8 @@ void codesTreeBypass(Huffman_node *root, Byte_code **byte_codes_table, uint64_t 
 
 }
 
-int getNumMoves(Huffman_node *root, int current_pos){
-    if(isLeaf(root)){
+int getNumMoves(Huffman_node *root, int current_pos) {
+    if (isLeaf(root)) {
         return current_pos + 1;
     }
     current_pos = getNumMoves(root->left, current_pos + 1);
@@ -168,7 +170,8 @@ int getNumMoves(Huffman_node *root, int current_pos){
     return current_pos + 1;
 }
 
-unsigned int saveTreeBypass(Huffman_node *root, unsigned int curr_pos, int *curr_byte_pos, bitword *tree_template, unsigned char *data_template) {
+unsigned int saveTreeBypass(Huffman_node *root, unsigned int curr_pos, int *curr_byte_pos, bitword *tree_template,
+                            unsigned char *data_template) {
     if (isLeaf(root)) {
         bitsetSet(tree_template, curr_pos, UP);
         *curr_byte_pos = *curr_byte_pos + 1;
@@ -184,4 +187,57 @@ unsigned int saveTreeBypass(Huffman_node *root, unsigned int curr_pos, int *curr
     bitsetSet(tree_template, curr_pos, UP);
 
     return curr_pos + 1;
+}
+//
+//Huffman_node *getTreeFromFile(Input_data *data) {
+//    int tree_template_size;
+//    short int alphabet_len;
+//    unsigned char *alphabet = NULL;
+//    bitword *tree_template = NULL;
+//
+//    fread(&tree_template_size, sizeof(int), 1, data->destination->file);
+//    tree_template = calloc(tree_template_size, sizeof(bitword));
+//    fread(tree_template, sizeof(bitword), tree_template_size, data->destination->file);
+//
+//    fread(&alphabet_len, sizeof(short int), 1, data->destination->file);
+//    alphabet = calloc(alphabet_len, sizeof(unsigned char));
+//    fread(alphabet, sizeof(unsigned char), alphabet_len, data->destination->file);
+//
+//    int inserted_bytes_counter = 0;
+//    char previous_command = 1;
+//    for (int i = 0; i < tree_template_size && inserted_bytes_counter < alphabet_len; i++) {
+//        char command = bitsetGet(tree_template, i);
+//        if (command) {
+//
+//        } else {
+//
+//        }
+//    }
+//
+//
+//}
+
+Huffman_node *getTreeFromFile1(char *current_command, char *current_byte, bitword *tree_template,
+                               short int alphabet_len, unsigned char *alphabet) {
+
+    Huffman_node *root = calloc(1, sizeof(Huffman_node));
+    if (*current_byte == alphabet_len - 1) {
+        return root;
+    }
+    if (bitsetGet(tree_template, *current_command) == DOWN) {
+        if (root->left == NULL) {
+            ++*current_command;
+            root->left = getTreeFromFile1(current_command, current_byte, tree_template, alphabet_len, alphabet);
+        } else {
+            ++*current_command;
+            root->right = getTreeFromFile1(current_command, current_byte, tree_template, alphabet_len, alphabet);
+        }
+    } else {
+        if (isLeaf(root)) {
+            root->byte = alphabet[*current_byte];
+            ++*current_byte;
+        }
+    }
+
+    return root;
 }
